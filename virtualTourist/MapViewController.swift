@@ -419,7 +419,7 @@ extension MapViewController {
         
         /* The gesture when the tap has been pressed for the specified period (minimumPressDuration)*/
         // a standard 
-        if (gestureRecognizer.state == .began) {
+        if (gestureRecognizer.state == .began)  {
             print("Gesture began") // when added a pin on the map... but never "change", because I cannot drag it !
             // handle the long press...
             // create the pin
@@ -435,8 +435,26 @@ extension MapViewController {
             let annotation = MKPointAnnotation() // Pin
             annotation.coordinate = touchMapCoordinate
             
+            // user lifted a finger, done dragging the pin - we should persist the pin to Core Data
+            
+            /* MARK - we don't need to append the annotation (Pin) to a variable like "onthemap" like annotations.append(annotation)  - Instead, we need to save it to COREDATA
+             create NSManagedObject pin -> and save it to database to coreData  */
+            
+            // MARK - pass lon/ lat to CREATE INSTANCE of a PIN - also, call ".save" to save this PIN instance to CORE DATA !
+            // createPinInstance((self.lat), (self.lon)) - only SAVED up to 5 decicmal of lon/ lat
+            createPinInstance(((self.lat*100000).rounded()/100000), ((self.lon*100000).rounded()/100000))
+            
+            // Actually save to CoreData
+            do {
+                try self.stack.saveContext()
+                print("Successfully saved - Pin is saved to CoreData")
+            } catch {
+                print("Saved failed - Pin is not able to save to CoreData")
+            }
+            
             // MARK - add a new  of MKPointAnnotation (a PIN) to mapView to display
             mapView.addAnnotation(annotation)
+            
             
         }
         
@@ -459,22 +477,7 @@ extension MapViewController {
         else if (gestureRecognizer.state == .ended) {
             print("Gesture ended")
             dragPin = nil
-            // user lifted a finger, done dragging the pin - we should persist the pin to Core Data
             
-            /* MARK - we don't need to append the annotation (Pin) to a variable like "onthemap" like annotations.append(annotation)  - Instead, we need to save it to COREDATA
-            create NSManagedObject pin -> and save it to database to coreData  */
-     
-            // MARK - pass lon/ lat to CREATE INSTANCE of a PIN - also, call ".save" to save this PIN instance to CORE DATA !
-            // createPinInstance((self.lat), (self.lon)) - only SAVED up to 5 decicmal of lon/ lat
-            createPinInstance(((self.lat*100000).rounded()/100000), ((self.lon*100000).rounded()/100000))
-            
-            // Actually save to CoreData
-            do {
-                try self.stack.saveContext()
-                print("Successfully saved - Pin is saved to CoreData")
-            } catch {
-                print("Saved failed - Pin is not able to save to CoreData")
-            }
         }
     }
     
