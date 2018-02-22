@@ -22,7 +22,7 @@ class MapViewController: UIViewController, MKMapViewDelegate, UIGestureRecognize
     
     var currentPinObject:Pin? //  Error raised if -> var currentPinObject = Pin
     
-   // var shouldAllowPan: Bool = false // so user can drag the pin, after placing it on map with longpress
+    var dragPin: MKPointAnnotation! // draggable Pin
     
     var coordinate: CLLocationCoordinate2D = kCLLocationCoordinate2DInvalid // ???? apple doc says there is newCoordinate...
     // for dragging pin...
@@ -438,18 +438,27 @@ extension MapViewController {
             // MARK - add a new  of MKPointAnnotation (a PIN) to mapView to display
             mapView.addAnnotation(annotation)
             
-        } else if (gestureRecognizer.state == .changed) {
+        }
+        
+        else if (gestureRecognizer.state == .changed) {
             print("Gesture is changing")
             // user drag the pin - update the first pin coordinates to change the position of the pin
             
             // UPDATE self.lat/ self.lon?
-            
-            
-            
-            
-            
-        } else if (gestureRecognizer.state == .ended) {
+            // self.lat = drag pin final x,y
+            dragPin = MKPointAnnotation()
+            self.lat = dragPin.coordinate.latitude
+            self.lon = dragPin.coordinate.longitude
+            // dragPin.coordinate = CLLocationCoordinate2D(latitude: self.lat, longitude: self.lon)
+            let annotation = MKPointAnnotation() // Pin
+            annotation.coordinate = CLLocationCoordinate2D(latitude: self.lat, longitude: self.lon)
+            mapView.addAnnotation(annotation)
+            // display the new dragged pin on map
+        }
+        
+        else if (gestureRecognizer.state == .ended) {
             print("Gesture ended")
+            dragPin = nil
             // user lifted a finger, done dragging the pin - we should persist the pin to Core Data
             
             /* MARK - we don't need to append the annotation (Pin) to a variable like "onthemap" like annotations.append(annotation)  - Instead, we need to save it to COREDATA
