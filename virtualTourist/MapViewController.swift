@@ -10,7 +10,7 @@ import MapKit
 import CoreData
 import CoreLocation
 
-class MapViewController: UIViewController, MKMapViewDelegate {
+class MapViewController: UIViewController, MKMapViewDelegate, UIGestureRecognizerDelegate {
     
     @IBOutlet weak var mapView: MKMapView! // it does not have MKMapViewDelegate till adding "self.mapView.delegate = self  // self = MapVC.swift"
     
@@ -21,6 +21,13 @@ class MapViewController: UIViewController, MKMapViewDelegate {
     let stack = CoreDataStack.sharedInstance()
     
     var currentPinObject:Pin? //  Error raised if -> var currentPinObject = Pin
+    
+   // var shouldAllowPan: Bool = false // so user can drag the pin, after placing it on map with longpress
+    
+    var coordinate: CLLocationCoordinate2D = kCLLocationCoordinate2DInvalid // ???? apple doc says there is newCoordinate...
+    // for dragging pin...
+    //kCLLocationCoordinate2DInvalid is a pre-defined constant
+    //better than using "0,0" which are technically valid
     
     override func viewWillAppear(_ animated: Bool) { // ask mentor??? do i need to keep this "_ animated: Bool? - Nikki: I think we should?
         
@@ -42,6 +49,12 @@ class MapViewController: UIViewController, MKMapViewDelegate {
         let longPressRecogniser = UILongPressGestureRecognizer(target: self, action: #selector(MapViewController.handleLongPress(_:)))
         longPressRecogniser.minimumPressDuration = 0.5
         mapView.addGestureRecognizer(longPressRecogniser) // registered -> call .handleLongPress when user perform the action
+        
+        /* MARK - Allow pin to be draggable
+        let panRecognizer = UIPanGestureRecognizer(target: self, action: #selector(MapViewController.draggedView(_:)))
+        panRecognizer.delegate = self
+        mapView.addGestureRecognizer(panRecognizer)  */
+        
         
         // change (VAR) properties of zoom level - use mapviewdelegate func -> detecting pinching motion - when REGION of the map is changed.
         // (VAR) center of the map - depends on where the pin is at -> "span" around
@@ -165,7 +178,8 @@ class MapViewController: UIViewController, MKMapViewDelegate {
     // Under MKMapViewDelegate - public protocol MKMapViewDelegate : NSObjectProtocol {
     //  optional public func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView?
 
-    // MENTOR's advise: this func is automatically called by SYSTEM when a user drops a new pin and user move to another location - at the system level -> it keeps checking any NEW annotation added / or user change the location in the map even though the pin is already there (in case they drag it) -> then it will do if/ else statement below.
+    // MENTOR's advise: this func is automatically called by SYSTEM when a user drops a new pin and user move to another location - at the system level -> it keeps checking any NEW annotation added / or user change the location in the map even though the pin is already there (in case they drag it) -> then it will do if/ else statement below. 
+    /* MARK - Create the annotation View */
     func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
         
         print("func mapView is being called") // educational purpose!
@@ -211,22 +225,31 @@ class MapViewController: UIViewController, MKMapViewDelegate {
         return false
     }
     
-    /*
-    /* MARK - Add regionWillChangeAnimated to enable dragging PIN */
-    func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
-        
-        if regionDidChangeFromUserInteraction() {
+    /* Make pin draggable - someone said - In didChangeDragState, remove the code that sets view.dragState -- you don't need it when using MKPinAnnotationView.
+     
+     Instead, you can just log the coordinates where the annotation is dropped:
+     */
+    func mapView(_ mapView: MKMapView, annotationView view: MKAnnotationView, didChange newState: MKAnnotationViewDragState, fromOldState oldState: MKAnnotationViewDragState) {
+        // remove below case/ switch code?? since I used MKPinAnnotationView as reuseid?
+        // standard - https://developer.apple.com/documentation/mapkit/mkannotationview/1451941-dragstate - Changing the state to the dragging or none value is the way to signal to the map view that you are done with any animations you wanted to perform. For example, when a drag operation begins for a pin annotation, the MKPinAnnotationView class executes an animation to lift the pin off the map. Similarly, when the pin is dropped, the class performs a drop animation. Even if you do not perform any animations, you should still change the value of this property to reflect the correct state.
+        print("newstate is \(newState)")
+        switch newState {
+        case .starting: // user taps on a Pin
+            view.dragState = .dragging
             
-            // MARK - Code to change the lat and lon!
-            // code here...
+        case .ending, .canceling: // user let go of the Pin
+            view.dragState = .none
             
-            
-            
+        default:
+            break
         }
         
-        
-    } // END of func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
- */
+        if newState == MKAnnotationViewDragState.ending {
+            let ann = view.annotation // getting annotation from the view - of the one being moved / dragged on the map
+            print("annotation dropped at : latitude \(ann!.coordinate.latitude), longitude \(ann!.coordinate.longitude)")
+        }
+    }
+    
     
     /* MARK - change (VAR) properties of zoom level - use mapviewdelegate func ->
      detecting pinching motion - when REGION of the map is changed. */
@@ -280,7 +303,7 @@ class MapViewController: UIViewController, MKMapViewDelegate {
     
     func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
         
-        // when user taps on this pin, what do you want it to respond...
+        // when user taps on this pin that already exists on the map, what do you want it to respond...
         // pass Coordinate to FetchRequest's predicate condition -> find matching pin from CoreData -> save as currentPin -> pass it to PhotoVC with prepare Segue & perform Segue
         
         print("User selected a Pin, \(view.annotation?.coordinate)")
@@ -316,6 +339,8 @@ class MapViewController: UIViewController, MKMapViewDelegate {
                 let fetchedResults = try stack.context.fetch(fetchRequest) as [Pin] // right side returns array [Pin], since there is only one pin should be found, grab the pos[0]
                 print("fetchedResults is \(fetchedResults)")
                 self.currentPinObject = fetchedResults[0]
+                // IMPORTANT - later, we still need "currentPinObject" to find the Photos based on this "currentPinObject" @ PhotoAlbum.swift
+                
                 /* testing (37.2542, 122.0396)  (Hakone garden)
                 currentPinObject?.latitude = 37.2542
                 currentPinObject?.longitude = 122.0396 */
@@ -342,18 +367,10 @@ class MapViewController: UIViewController, MKMapViewDelegate {
         
     }
     
-    
-    
-    
-    
     // Step 2.1 - pass Pin object and Stack from mapvc -> photalbumvc -> flickrconveneince.
     // Step 2.2 - perform segue under didSelect func - performSegue(withIdentifier: "PhotoAlbumVC", sender: self)
-    
 
-    
-    
-    
-    
+
 }
 
 extension MapViewController {
@@ -396,8 +413,26 @@ extension MapViewController {
         
     } // END of func displayAllAnnotationsFromCoreData()
 
-    func handleLongPress(_ gestureRecognizer : UIGestureRecognizer) {
-        if gestureRecognizer.state != .began {return} /* The gesture when the tap has been pressed for the specified period (minimumPressDuration)*/
+    func handleLongPress(_ gestureRecognizer : UIGestureRecognizer) { //Nikki: or  UIPanGestureRecognizer ???
+        if gestureRecognizer.state != .began {return}
+        
+        /* The gesture when the tap has been pressed for the specified period (minimumPressDuration)*/
+        // a standard 
+        if (gestureRecognizer.state == .began) {
+            print("Gesture began") // when added a pin on the map... but never "change", because I cannot drag it !
+            // handle the long press...
+            // get current coordinates?
+            // how to get select pin?
+            
+        } else if (gestureRecognizer.state == .changed) {
+            print("Gesture is changing")
+            // shouldAllowPan = true
+            
+            // update the existing coordinate with new ones.
+        } else if (gestureRecognizer.state == .ended) {
+            print("Gesture ended")
+            // shouldAllowPan = false
+        }
         let touchPoint = gestureRecognizer.location(in: mapView) // Get location from added pin
         // let touchMapCoordinate = mapView.convert(CGPoint, toCoordinateFrom: <#T##UIView?#>) // CLLocationCoordinate2D method - CGPoint = CoreGraphic Point from another deeper API
         let touchMapCoordinate = mapView.convert(touchPoint, toCoordinateFrom: mapView)
@@ -424,6 +459,24 @@ extension MapViewController {
     }
     
     
+   /* func draggedView(_ gestureRecognizer : UIGestureRecognizer) {
+        
+    } */
+    
+    /* MARK - Allow simultaneous gestures */
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        return true
+    }
+    
+  /*  func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        // We only allow the (drag) gesture to continue if it is within a long press
+        if ((gestureRecognizer is UIPanGestureRecognizer) && (shouldAllowPan == false)) {
+            return false
+        }
+        return true // only let user drag it if .state == .Changed!
+    } */
+    
+    
     // FOR TESTING ONLY
     private func bboxString(_ latitude: Double, _ longitude: Double) -> String {
         
@@ -439,7 +492,7 @@ extension MapViewController {
     
     func searchByCoordinate() {
         // call Flickr API here
-        /* this block to test getTotalPages before get getPhotoArrayByRandPage
+        /* this block to test getPhotoTotalPage before get getPhotoArrayByRandPage
 
         // *** currentPinObject must has value as calling this after it's set inside didSelect
         if let latitude = currentPinObject?.latitude, let longitude = currentPinObject?.longitude {
@@ -461,8 +514,8 @@ extension MapViewController {
         // currentPinObject must has value as calling this after it's set inside didSelect
         
         
-        
-        if let currentPin = self.currentPinObject {
+        if let currentPin = self.currentPinObject { // should also check if photoAlbum already exist (in case user taps on the SAME Pin after clicking "back")
+            
             FlickrConvenience.sharedInstance().getPhotoArrayByRandPage(currentPin) { (PhotoArray, error) in
                 
                 if let photoArray = PhotoArray {

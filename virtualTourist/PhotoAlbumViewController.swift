@@ -47,6 +47,7 @@ class PhotoAlbumViewController: UIViewController, MKMapViewDelegate, UICollectio
         
         fetchedResultsController.delegate = self // assign PhotoAlbumViewController.swift as delegate of fetchedResultsController. so we can call all func of fetchedResultsController RIGHT HERE @ PhotoAlbumViewController.swift
         print("fetchedResultsController is \(fetchedResultsController)")
+        
         // } // END of if let currentPinObject = self.currentPinObject {
         
         return fetchedResultsController
@@ -172,7 +173,6 @@ class PhotoAlbumViewController: UIViewController, MKMapViewDelegate, UICollectio
         self.mapView.delegate = self //  set PhotoAlbumVC.swift as delegate of mapView, so we can call mapView's func right here in this file
         displayCurrentPinOnMap()          // get the currentPinObject's coordinate, and display
 
-        
     } // END of override func viewWillAppear
     
     // MARK: - View Lifecycle Methods
@@ -186,6 +186,7 @@ class PhotoAlbumViewController: UIViewController, MKMapViewDelegate, UICollectio
         print("Pin is passed to PhotoAlbumViewController is - lat: \(self.currentPinObject?.latitude) & lon: \(self.currentPinObject?.longitude)")
         
         // Start the fetched results controller -
+        // The fetched results controller doesn't perform a fetch if we don't tell it to. We should perform a fetch when the Core Data stack is ready to use. Performing a fetch is as simple as invoking performFetch() on the fetched results controller.
         /*  Executes the fetch request on the store to get objects.
          Returns YES if successful or NO (and an error) if a problem occurred.
          An error is returned if the fetch request specified doesn't include a sort descriptor that uses sectionNameKeyPath.
@@ -198,8 +199,6 @@ class PhotoAlbumViewController: UIViewController, MKMapViewDelegate, UICollectio
             print("fetchedResultsController is \(fetchedResultsController)")
             print("fetchedObjects are photos ... \(fetchedResultsController.fetchedObjects)") // what;s the use of "fetchedObjects"??? - it's ALWAYS nil
             
-            
-            
         } catch let error1 as NSError {
             error = error1
         }
@@ -209,6 +208,7 @@ class PhotoAlbumViewController: UIViewController, MKMapViewDelegate, UICollectio
         }
         
         updateBottomButton()
+        showPhotoCount()
         
     } // END of viewDidLoad()
 
@@ -278,6 +278,10 @@ class PhotoAlbumViewController: UIViewController, MKMapViewDelegate, UICollectio
     // instead of calling ViewController's func displayError, we pass the "error" to completion handler!
     // self.displayError("There was an error with your request \(error?.localizedDescription)") // convert NSError to String with ".localizedDescription"
     
+    func showPhotoCount() -> Void {
+        print("counts are ... \(fetchedResultsController.fetchedObjects?.count)")
+        
+    }
     // MARK - to display pin that user just selected
     func displayCurrentPinOnMap() -> Void {
         print("in displayCurrentPinOnMap()")
@@ -329,6 +333,7 @@ class PhotoAlbumViewController: UIViewController, MKMapViewDelegate, UICollectio
         // try to get photo from the fetchedResultsController
         let photos = fetchedResultsController.fetchedObjects
         print("photos here is the fetchedObjects \(photos)")
+        
         
         // MARK - real code:
         let photo = self.fetchedResultsController.object(at: indexPath)
@@ -442,7 +447,7 @@ class PhotoAlbumViewController: UIViewController, MKMapViewDelegate, UICollectio
         
     }
     
-    // how does it change anything??? if we configureCell(cell, atIndexPath: indexPath) -> but not reading selectedIndexes???
+    // how does it change anything??? if we configureCell(cell, atIndexPath: indexPath) -> but not reading selectedIndexes? - solved
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         print("in collectionView - didSelectItemAt indexPath")
         
