@@ -232,6 +232,7 @@ class MapViewController: UIViewController, MKMapViewDelegate, UIGestureRecognize
     func mapView(_ mapView: MKMapView, annotationView view: MKAnnotationView, didChange newState: MKAnnotationViewDragState, fromOldState oldState: MKAnnotationViewDragState) {
         // remove below case/ switch code?? since I used MKPinAnnotationView as reuseid?
         // standard - https://developer.apple.com/documentation/mapkit/mkannotationview/1451941-dragstate - Changing the state to the dragging or none value is the way to signal to the map view that you are done with any animations you wanted to perform. For example, when a drag operation begins for a pin annotation, the MKPinAnnotationView class executes an animation to lift the pin off the map. Similarly, when the pin is dropped, the class performs a drop animation. Even if you do not perform any animations, you should still change the value of this property to reflect the correct state.
+        
         print("newstate is \(newState)")
         switch newState {
         case .starting: // user taps on a Pin
@@ -421,46 +422,56 @@ extension MapViewController {
         if (gestureRecognizer.state == .began) {
             print("Gesture began") // when added a pin on the map... but never "change", because I cannot drag it !
             // handle the long press...
-            // get current coordinates?
-            // how to get select pin?
+            // create the pin
+            let touchPoint = gestureRecognizer.location(in: mapView) // Get location from added pin
+            // let touchMapCoordinate = mapView.convert(CGPoint, toCoordinateFrom: <#T##UIView?#>) // CLLocationCoordinate2D method - CGPoint = CoreGraphic Point from another deeper API
+            let touchMapCoordinate = mapView.convert(touchPoint, toCoordinateFrom: mapView)
+            // "touchMapCoordinate" is type of CLLocationCoordinate2D -> init(latitude: CLLocationDegrees, longitude: CLLocationDegrees)
+            self.lat = touchMapCoordinate.latitude
+            self.lon = touchMapCoordinate.longitude
+            
+            print("touchMapCoordinate is ... \(touchMapCoordinate)") // expected print out: (latitude, longitude)
+            
+            let annotation = MKPointAnnotation() // Pin
+            annotation.coordinate = touchMapCoordinate
+            
+            // MARK - add a new  of MKPointAnnotation (a PIN) to mapView to display
+            mapView.addAnnotation(annotation)
             
         } else if (gestureRecognizer.state == .changed) {
             print("Gesture is changing")
-            // shouldAllowPan = true
+            // user drag the pin - update the first pin coordinates to change the position of the pin
             
-            // update the existing coordinate with new ones.
+            // UPDATE self.lat/ self.lon?
+            
+            
+            
+            
+            
         } else if (gestureRecognizer.state == .ended) {
             print("Gesture ended")
-            // shouldAllowPan = false
+            // user lifted a finger, done dragging the pin - we should persist the pin to Core Data
+            
+            /* MARK - we don't need to append the annotation (Pin) to a variable like "onthemap" like annotations.append(annotation)  - Instead, we need to save it to COREDATA
+            create NSManagedObject pin -> and save it to database to coreData  */
+     
+            // MARK - pass lon/ lat to CREATE INSTANCE of a PIN - also, call ".save" to save this PIN instance to CORE DATA !
+            // createPinInstance((self.lat), (self.lon)) - only SAVED up to 5 decicmal of lon/ lat
+            createPinInstance(((self.lat*100000).rounded()/100000), ((self.lon*100000).rounded()/100000))
+            
+            // Actually save to CoreData
+            do {
+                try self.stack.saveContext()
+                print("Successfully saved - Pin is saved to CoreData")
+            } catch {
+                print("Saved failed - Pin is not able to save to CoreData")
+            }
         }
-        let touchPoint = gestureRecognizer.location(in: mapView) // Get location from added pin
-        // let touchMapCoordinate = mapView.convert(CGPoint, toCoordinateFrom: <#T##UIView?#>) // CLLocationCoordinate2D method - CGPoint = CoreGraphic Point from another deeper API
-        let touchMapCoordinate = mapView.convert(touchPoint, toCoordinateFrom: mapView)
-        // "touchMapCoordinate" is type of CLLocationCoordinate2D -> init(latitude: CLLocationDegrees, longitude: CLLocationDegrees)
-        self.lat = touchMapCoordinate.latitude
-        self.lon = touchMapCoordinate.longitude
-        
-        print("touchMapCoordinate is ... \(touchMapCoordinate)") // expected print out: (latitude, longitude)
-        
-        // MARK - trigger func to pass lon/ lat to CREATE INSTANCE of a PIN - also, call ".save" to save this PIN instance to CORE DATA !
-        // createPinInstance((self.lat), (self.lon))
-        // only SAVED up to 5 decicmal of lon/ lat
-        createPinInstance(((self.lat*100000).rounded()/100000), ((self.lon*100000).rounded()/100000))
-        
-        let annotation = MKPointAnnotation() // Pin
-        annotation.coordinate = touchMapCoordinate
-        
-        /* MARK - we don't need to append the annotation (Pin) to a variable - Instead, we need to add it to COREDATA
-        create NSManagedObject pin -> and save it to database to coreData
-        annotations.append(annotation) // so when to call this func - Ans: when minimumPressDuration = 1.0 */
-
-        // MARK - add a new  of MKPointAnnotation (a PIN) to mapView to display
-        mapView.addAnnotation(annotation)
     }
     
     
    /* func draggedView(_ gestureRecognizer : UIGestureRecognizer) {
-        
+     
     } */
     
     /* MARK - Allow simultaneous gestures */
